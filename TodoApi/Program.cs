@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,11 +22,16 @@ builder.Services.AddAuthentication("Bearer")
             ValidateIssuer = true,
             ValidateAudience = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = 
+            ValidIssuer = builder.Configuration.GetValue<string>("Authentication:Issuer"),
+            ValidAudience = builder.Configuration.GetValue<string>("Authentication:Audience"),
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(builder.Configuration.GetValue<string>("Authentication:SecretKey")))
         };
 
     });
+builder.Services.AddHealthChecks().AddNpgSql(builder.Configuration.GetConnectionString("Default"));
+
 var app = builder.Build();
+
 
 if (app.Environment.IsDevelopment())
 {
@@ -34,8 +41,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHealthChecks("/health").AllowAnonymous();
 
 app.Run();
